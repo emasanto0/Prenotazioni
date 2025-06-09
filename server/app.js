@@ -202,6 +202,17 @@ app.get('/api/availability/:weekday/:timeSlot', async (req, res) => {
   }
 });
 
+// Reset all bookings (weekly reset)
+app.post('/api/bookings/reset', async (req, res) => {
+  try {
+    await db.delete(bookings);
+    res.json({ message: 'Tutte le prenotazioni sono state resettate' });
+  } catch (error) {
+    console.error('Error resetting bookings:', error);
+    res.status(500).json({ error: 'Errore durante il reset delle prenotazioni' });
+  }
+});
+
 // Serve the main HTML file
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'index.html'));

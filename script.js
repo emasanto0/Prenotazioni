@@ -15,6 +15,7 @@ class LibraryBookingSystem {
         this.initializeEventListeners();
         this.loadBookings();
         this.updateAvailabilityInfo();
+        this.initializeWeeklyTable();
     }
 
     /**
@@ -43,6 +44,7 @@ class LibraryBookingSystem {
             this.bookings = await response.json();
             this.updateActiveBookingsDisplay();
             this.updateAvailabilityInfo();
+            this.updateWeeklyTable();
         } catch (error) {
             console.error('Errore nel caricamento delle prenotazioni:', error);
             this.showNotification('Errore nel caricamento delle prenotazioni', 'error');
@@ -508,6 +510,119 @@ class LibraryBookingSystem {
         link.click();
         
         this.showNotification('Prenotazioni esportate con successo', 'success');
+    }
+
+    /**
+     * Inizializza la tabella settimanale
+     */
+    initializeWeeklyTable() {
+        this.updateWeeklyTable();
+        // Controlla ogni ora se è necessario resettare la tabella
+        setInterval(() => {
+            this.checkAndResetWeeklyTable();
+        }, 60 * 60 * 1000); // Ogni ora
+    }
+
+    /**
+     * Controlla se è sabato e resetta la tabella se necessario
+     */
+    async checkAndResetWeeklyTable() {
+        const now = new Date();
+        const dayOfWeek = now.getDay(); // 0 = domenica, 6 = sabato
+        
+        // Se è sabato e sono passate le 00:00
+        if (dayOfWeek === 6 && now.getHours() === 0 && now.getMinutes() < 60) {
+            try {
+                // Cancella tutte le prenotazioni dal database
+                const response = await fetch('/api/bookings/reset', {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    this.bookings = [];
+                    this.updateActiveBookingsDisplay();
+                    this.updateWeeklyTable();
+                    this.showNotification('Tabella settimanale resettata automaticamente', 'success');
+                }
+            } catch (error) {
+                console.error('Errore durante il reset settimanale:', error);
+            }
+        }
+    }
+
+    /**
+     * Aggiorna la visualizzazione della tabella settimanale
+     */
+    updateWeeklyTable() {
+        const container = document.getElementById('weeklyTable');
+        
+        const weekdays = ['lunedi', 'martedi', 'mercoledi', 'giovedi', 'venerdi'];
+        const timeSlots = ['mattina', 'pomeriggio'];
+        
+        // Crea la struttura della tabella
+        let tableHTML = `
+            <table class="weekly-table">
+                <thead>
+                    <tr>
+                        <th>Fascia Oraria</th>
+                        <th>Lunedì</th>
+                        <th>Martedì</th>
+                        <th>Mercoledì</th>
+                        <th>Giovedì</th>
+                        <th>Venerdì</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        timeSlots.forEach(timeSlot => {
+            tableHTML += `<tr>`;
+            tableHTML += `<td class="time-slot-cell">${this.getTimeSlotDisplayName(timeSlot)}</td>`;
+            
+            weekdays.forEach(weekday => {
+                const isAvailable = this.timeSlotAvailability[timeSlot].includes(weekday);
+                
+                if (!isAvailable) {
+                    tableHTML += `<td class="day-cell unavailable-cell">Non disponibile</td>`;
+                } else {
+                    const bookingsForSlot = this.bookings.filter(booking => 
+                        booking.weekday === weekday && booking.timeSlot === timeSlot
+                    );
+                    
+                    const count = bookingsForSlot.length;
+                    const available = this.maxBookingsPerSlot - count;
+                    
+                    let countClass = 'booking-count';
+                    if (count >= this.maxBookingsPerSlot) {
+                        countClass += ' full';
+                    } else if (available <= 2) {
+                        countClass += ' limited';
+                    }
+                    
+                    tableHTML += `<td class="day-cell">`;
+                    tableHTML += `<div class="${countClass}">${count}/${this.maxBookingsPerSlot}</div>`;
+                    
+                    if (bookingsForSlot.length > 0) {
+                        tableHTML += `<div class="booking-names">`;
+                        bookingsForSlot.forEach(booking => {
+                            tableHTML += `<div class="booking-name">${this.escapeHtml(booking.name)}</div>`;
+                        });
+                        tableHTML += `</div>`;
+                    }
+                    
+                    tableHTML += `</td>`;
+                }
+            });
+            
+            tableHTML += `</tr>`;
+        });
+
+        tableHTML += `
+                </tbody>
+            </table>
+        `;
+
+        container.innerHTML = tableHTML;
     }
 }
 
