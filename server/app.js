@@ -7,8 +7,6 @@ const { eq, and } = require('drizzle-orm');
 const path = require('path');
 const ws = require('ws');
 
-const __dirname = path.dirname(__filename);
-
 // Neon configuration
 neonConfig.webSocketConstructor = ws;
 
