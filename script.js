@@ -1,3 +1,4 @@
+const API_BASE_URL = 'https://prenotazioni-4.onrender.com';
 /**
  * Sistema di prenotazione postazioni biblioteca
  * Gestisce prenotazioni con database online e aggiornamenti real-time
@@ -404,7 +405,7 @@ class LibraryBookingSystem {
         }
 
         try {
-            const response = await fetch(`/api/bookings/${bookingId}`, {
+            const response = await fetch(`${API_BASE_URL}?/api/bookings/${bookingId}`, {
                 method: 'DELETE'
             });
 
