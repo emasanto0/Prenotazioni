@@ -1,9 +1,29 @@
-import express from 'express';
-import cors from 'cors';
-import { db } from './db.js';
-import { bookings } from '../shared/schema.js';
-import { eq, and } from 'drizzle-orm';
-import path from 'path';
+const express = require('express');
+const cors = require('cors');
+const { Pool, neonConfig } = require('@neondatabase/serverless');
+const { drizzle } = require('drizzle-orm/neon-serverless');
+const { pgTable, text, timestamp, serial } = require('drizzle-orm/pg-core');
+const { eq, and } = require('drizzle-orm');
+const path = require('path');
+const ws = require('ws');
+
+const __dirname = path.dirname(__filename);
+
+// Neon configuration
+neonConfig.webSocketConstructor = ws;
+
+// Database schema
+const bookings = pgTable('bookings', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  weekday: text('weekday').notNull(),
+  timeSlot: text('time_slot').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Database connection
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const db = drizzle(pool);
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '5000');
@@ -11,7 +31,7 @@ const PORT = parseInt(process.env.PORT || '5000');
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static('.'));
+app.use(express.static(path.join(__dirname, '..')));
 
 // Time slot availability configuration
 const timeSlotAvailability = {
@@ -186,7 +206,7 @@ app.get('/api/availability/:weekday/:timeSlot', async (req, res) => {
 
 // Serve the main HTML file
 app.get('/', (req, res) => {
-  res.sendFile(path.join(process.cwd(), 'index.html'));
+  res.sendFile(path.join(__dirname, '..', 'index.html'));
 });
 
 app.listen(PORT, '0.0.0.0', () => {

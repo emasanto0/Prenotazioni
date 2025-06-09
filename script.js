@@ -1,11 +1,11 @@
 /**
  * Sistema di prenotazione postazioni biblioteca
- * Gestisce prenotazioni con localStorage e validazione real-time
+ * Gestisce prenotazioni con database online e aggiornamenti real-time
  */
 
 class LibraryBookingSystem {
     constructor() {
-        this.bookings = this.loadBookings();
+        this.bookings = [];
         this.maxBookingsPerSlot = 4;
         this.timeSlotAvailability = {
             mattina: ['lunedi', 'martedi', 'mercoledi', 'giovedi', 'venerdi'],
@@ -13,7 +13,7 @@ class LibraryBookingSystem {
         };
         
         this.initializeEventListeners();
-        this.updateActiveBookingsDisplay();
+        this.loadBookings();
         this.updateAvailabilityInfo();
     }
 
@@ -32,27 +32,45 @@ class LibraryBookingSystem {
     }
 
     /**
-     * Carica le prenotazioni dal localStorage
+     * Carica le prenotazioni dal database
      */
-    loadBookings() {
+    async loadBookings() {
         try {
-            const stored = localStorage.getItem('libraryBookings');
-            return stored ? JSON.parse(stored) : [];
+            const response = await fetch('/api/bookings');
+            if (!response.ok) {
+                throw new Error('Errore nel caricamento delle prenotazioni');
+            }
+            this.bookings = await response.json();
+            this.updateActiveBookingsDisplay();
+            this.updateAvailabilityInfo();
         } catch (error) {
             console.error('Errore nel caricamento delle prenotazioni:', error);
-            return [];
+            this.showNotification('Errore nel caricamento delle prenotazioni', 'error');
         }
     }
 
     /**
-     * Salva le prenotazioni nel localStorage
+     * Crea una nuova prenotazione nel database
      */
-    saveBookings() {
+    async saveBooking(bookingData) {
         try {
-            localStorage.setItem('libraryBookings', JSON.stringify(this.bookings));
+            const response = await fetch('/api/bookings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(bookingData),
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Errore durante la prenotazione');
+            }
+
+            return await response.json();
         } catch (error) {
-            console.error('Errore nel salvataggio delle prenotazioni:', error);
-            this.showNotification('Errore nel salvataggio della prenotazione', 'error');
+            console.error('Errore nel salvataggio della prenotazione:', error);
+            throw error;
         }
     }
 
@@ -94,7 +112,7 @@ class LibraryBookingSystem {
     /**
      * Aggiorna le informazioni di disponibilità
      */
-    updateAvailabilityInfo() {
+    async updateAvailabilityInfo() {
         const weekday = document.getElementById('weekday').value;
         const timeSlot = document.getElementById('timeSlot').value;
         const availabilityInfo = document.getElementById('availabilityInfo');
@@ -104,6 +122,54 @@ class LibraryBookingSystem {
             return;
         }
 
+        try {
+            const response = await fetch(`/api/availability/${weekday}/${timeSlot}`);
+            if (!response.ok) {
+                throw new Error('Errore nel controllo disponibilità');
+            }
+
+            const availability = await response.json();
+
+            if (!availability.available) {
+                if (availability.reason === 'unavailable') {
+                    availabilityInfo.className = 'availability-info unavailable';
+                    availabilityInfo.innerHTML = `
+                        <i class="fas fa-times-circle"></i>
+                        La fascia oraria "${this.getTimeSlotDisplayName(timeSlot)}" non è disponibile per ${this.getWeekdayDisplayName(weekday)}
+                    `;
+                } else if (availability.reason === 'full') {
+                    availabilityInfo.className = 'availability-info full';
+                    availabilityInfo.innerHTML = `
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Fascia oraria completa! Non ci sono postazioni disponibili.
+                    `;
+                }
+            } else {
+                if (availability.reason === 'limited') {
+                    availabilityInfo.className = 'availability-info limited';
+                    availabilityInfo.innerHTML = `
+                        <i class="fas fa-info-circle"></i>
+                        Attenzione: Solo ${availability.availableSpots} postazione/i rimaste per questa fascia oraria.
+                    `;
+                } else {
+                    availabilityInfo.className = 'availability-info available';
+                    availabilityInfo.innerHTML = `
+                        <i class="fas fa-check-circle"></i>
+                        Postazioni disponibili: ${availability.availableSpots} su ${availability.totalSpots}
+                    `;
+                }
+            }
+        } catch (error) {
+            console.error('Errore nel controllo disponibilità:', error);
+            // Fallback to local check if API fails
+            this.updateAvailabilityInfoLocal(weekday, timeSlot, availabilityInfo);
+        }
+    }
+
+    /**
+     * Controllo disponibilità locale come fallback
+     */
+    updateAvailabilityInfoLocal(weekday, timeSlot, availabilityInfo) {
         // Controlla se la fascia oraria è disponibile per il giorno
         if (!this.timeSlotAvailability[timeSlot].includes(weekday)) {
             availabilityInfo.className = 'availability-info unavailable';
@@ -160,25 +226,25 @@ class LibraryBookingSystem {
             const bookingData = {
                 name: formData.get('userName').trim(),
                 weekday: formData.get('weekday'),
-                timeSlot: formData.get('timeSlot'),
-                timestamp: new Date().toISOString(),
-                id: this.generateBookingId()
+                timeSlot: formData.get('timeSlot')
             };
 
-            // Validazione
-            const validation = this.validateBooking(bookingData);
-            if (!validation.isValid) {
-                this.showNotification(validation.message, 'error');
+            // Validazione base
+            if (!bookingData.name || bookingData.name.length < 2) {
+                this.showNotification('Il nome deve contenere almeno 2 caratteri', 'error');
                 return;
             }
 
-            // Aggiungi prenotazione
-            this.bookings.push(bookingData);
-            this.saveBookings();
+            if (!bookingData.weekday || !bookingData.timeSlot) {
+                this.showNotification('Seleziona giorno e fascia oraria', 'error');
+                return;
+            }
+
+            // Salva prenotazione nel database
+            const newBooking = await this.saveBooking(bookingData);
             
-            // Aggiorna interfaccia
-            this.updateActiveBookingsDisplay();
-            this.updateAvailabilityInfo();
+            // Ricarica prenotazioni dal database
+            await this.loadBookings();
             
             // Reset form
             event.target.reset();
@@ -192,7 +258,7 @@ class LibraryBookingSystem {
 
         } catch (error) {
             console.error('Errore durante la prenotazione:', error);
-            this.showNotification('Si è verificato un errore durante la prenotazione. Riprova.', 'error');
+            this.showNotification(error.message || 'Si è verificato un errore durante la prenotazione. Riprova.', 'error');
         } finally {
             // Riabilita il pulsante
             submitBtn.disabled = false;
@@ -322,24 +388,36 @@ class LibraryBookingSystem {
     /**
      * Elimina una prenotazione
      */
-    deleteBooking(bookingId) {
-        const bookingIndex = this.bookings.findIndex(booking => booking.id === bookingId);
+    async deleteBooking(bookingId) {
+        const booking = this.bookings.find(booking => booking.id == bookingId);
         
-        if (bookingIndex === -1) {
+        if (!booking) {
             this.showNotification('Prenotazione non trovata', 'error');
             return;
         }
-
-        const booking = this.bookings[bookingIndex];
         
         // Conferma eliminazione
-        if (confirm(`Sei sicuro di voler eliminare la prenotazione di ${booking.name}?`)) {
-            this.bookings.splice(bookingIndex, 1);
-            this.saveBookings();
-            this.updateActiveBookingsDisplay();
-            this.updateAvailabilityInfo();
+        if (!confirm(`Sei sicuro di voler eliminare la prenotazione di ${booking.name}?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/bookings/${bookingId}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Errore durante l\'eliminazione');
+            }
+
+            // Ricarica le prenotazioni dal database
+            await this.loadBookings();
             
             this.showNotification('Prenotazione eliminata con successo', 'success');
+        } catch (error) {
+            console.error('Errore durante l\'eliminazione:', error);
+            this.showNotification(error.message || 'Errore durante l\'eliminazione della prenotazione', 'error');
         }
     }
 

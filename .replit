@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "python-3.11"]
+modules = ["nodejs-20", "python-3.11", "postgresql-16"]
 
 [nix]
 channel = "stable-24_05"
@@ -21,11 +21,11 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python -m http.server 5000"
+args = "node server/app.js"
 waitForPort = 5000
 
 [deployment]
-run = ["sh", "-c", "python -m http.server 5000"]
+run = ["sh", "-c", "node server/app.js"]
 
 [[ports]]
 localPort = 5000
