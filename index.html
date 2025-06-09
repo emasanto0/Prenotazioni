@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prenotazione Postazioni - Biblioteca Pubblica</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-content">
+                <i class="fas fa-book-open"></i>
+                <h1>Prenotazione Postazioni Biblioteca</h1>
+                <p>Prenota la tua postazione di studio</p>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- Modulo di prenotazione -->
+            <section class="booking-section">
+                <div class="card">
+                    <h2><i class="fas fa-calendar-plus"></i> Nuova Prenotazione</h2>
+                    
+                    <form id="bookingForm" class="booking-form">
+                        <div class="form-group">
+                            <label for="userName">
+                                <i class="fas fa-user"></i>
+                                Nome e Cognome
+                            </label>
+                            <input 
+                                type="text" 
+                                id="userName" 
+                                name="userName" 
+                                required 
+                                placeholder="Inserisci il tuo nome e cognome"
+                                autocomplete="name"
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="weekday">
+                                <i class="fas fa-calendar-week"></i>
+                                Giorno della Settimana
+                            </label>
+                            <select id="weekday" name="weekday" required>
+                                <option value="">Seleziona un giorno</option>
+                                <option value="lunedi">Lunedì</option>
+                                <option value="martedi">Martedì</option>
+                                <option value="mercoledi">Mercoledì</option>
+                                <option value="giovedi">Giovedì</option>
+                                <option value="venerdi">Venerdì</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="timeSlot">
+                                <i class="fas fa-clock"></i>
+                                Fascia Oraria
+                            </label>
+                            <select id="timeSlot" name="timeSlot" required>
+                                <option value="">Seleziona una fascia oraria</option>
+                                <option value="mattina">Mattina (8:30–13:30)</option>
+                                <option value="pomeriggio">Pomeriggio (14:00–17:00)</option>
+                            </select>
+                        </div>
+
+                        <div id="availabilityInfo" class="availability-info"></div>
+
+                        <button type="submit" class="submit-btn">
+                            <i class="fas fa-check"></i>
+                            Prenota Postazione
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Sezione prenotazioni attive -->
+            <section class="active-bookings-section">
+                <div class="card">
+                    <h2><i class="fas fa-list"></i> Prenotazioni Attive</h2>
+                    <div id="activeBookings" class="bookings-list">
+                        <div class="empty-state">
+                            <i class="fas fa-inbox"></i>
+                            <p>Nessuna prenotazione attiva</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sezione informazioni -->
+            <section class="info-section">
+                <div class="card">
+                    <h3><i class="fas fa-info-circle"></i> Informazioni Importanti</h3>
+                    <ul class="info-list">
+                        <li><i class="fas fa-clock"></i> <strong>Mattina:</strong> 8:30–13:30 (Lunedì–Venerdì)</li>
+                        <li><i class="fas fa-clock"></i> <strong>Pomeriggio:</strong> 14:00–17:00 (Lunedì–Mercoledì)</li>
+                        <li><i class="fas fa-users"></i> Massimo 4 prenotazioni per fascia oraria</li>
+                        <li><i class="fas fa-mobile-alt"></i> Le prenotazioni sono salvate localmente sul dispositivo</li>
+                    </ul>
+                </div>
+            </section>
+        </main>
+
+        <!-- Messaggio di notifica -->
+        <div id="notification" class="notification"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
